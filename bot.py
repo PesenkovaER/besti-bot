@@ -1,29 +1,35 @@
+import os
 import random
 import asyncio
-import os
 import requests
 
 from dotenv import load_dotenv
-
-from aiogram import Bot, Dispatcher, types
 from aiogram.types import (
     InlineKeyboardMarkup,
     InlineKeyboardButton,
     ReplyKeyboardMarkup,
     KeyboardButton
 )
+# 1. СНАЧАЛА .env
+load_dotenv(dotenv_path="D:\\besti-bot\\.env", override=True)
 
-# =========================
-# ЗАГРУЗКА .ENV
-# =========================
-load_dotenv()
+# 2. ПОТОМ переменные
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+if not TELEGRAM_TOKEN:
+    raise Exception("TELEGRAM_TOKEN НЕ ЗАГРУЗИЛСЯ")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
+if not OPENROUTER_API_KEY:
+    raise Exception("OPENROUTER_API_KEY НЕ ЗАГРУЗИЛСЯ")
 
-# =========================
-# TELEGRAM
-# =========================
+# 3. проверка (очень полезно)
+print("TG KEY:", repr(TELEGRAM_TOKEN))
+print("OR KEY:", repr(OPENROUTER_API_KEY))
+
+# 4. теперь только импорт бота
+from aiogram import Bot, Dispatcher, types
+
+# 5. и создание
 bot = Bot(token=TELEGRAM_TOKEN)
 dp = Dispatcher()
 
@@ -271,21 +277,26 @@ def get_ai_response(user_id, user_text):
     try:
 
         add_to_memory(user_id, "user", user_text.strip())
-
+        print("OPENROUTER KEY DEBUG:", repr(OPENROUTER_API_KEY))
+        if not OPENROUTER_API_KEY:
+            raise Exception("OPENROUTER_API_KEY пустой")
+        print("HEADERS CHECK:", {
+            "Authorization": f"Bearer {OPENROUTER_API_KEY.strip()}",
+        })
         response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json"
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers = {
+                "Authorization": f"Bearer {OPENROUTER_API_KEY.strip()}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://localhost",
+                "X-Title": "besti-bot"
             },
             json={
                 "model": "deepseek/deepseek-chat-v3",
-
                 "temperature": 1.1,
                 "top_p": 0.95,
                 "presence_penalty": 0.6,
                 "frequency_penalty": 0.5,
-
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     *user_memory[user_id]
@@ -295,7 +306,9 @@ def get_ai_response(user_id, user_text):
         )
 
         if response.status_code != 200:
-            return "💔 Бести перегружена"
+            print("OPENROUTER ERROR:", response.status_code)
+            print(response.text)
+            return f"💔 ошибка API: {response.status_code}"
 
         data = response.json()
 
@@ -322,7 +335,17 @@ async def handle_message(message: types.Message):
     if text == "/start" or text == "🔄 меню":
         await message.answer("кто ты 💅", reply_markup=gender_keyboard())
         return
+    # очистка памяти
+    if text == "/reset":
 
+        user_memory[user_id] = []
+
+        await message.answer(
+            "память очищена 💅",
+            reply_markup=main_keyboard
+        )
+
+        return
     # 1. сначала пол
     if user_id not in user_gender:
         await message.answer("сначала выбери кто ты 💅", reply_markup=gender_keyboard())
@@ -355,7 +378,9 @@ async def handle_message(message: types.Message):
 @dp.callback_query()
 async def callback_handler(callback: types.CallbackQuery):
 
-    user_id = callback.from_user.id  # ✅ ВОТ ЭТО ДОБАВИТЬ
+    await callback.answer()  # 🔥 ВАЖНО: сразу отвечаем Telegram
+
+    user_id = callback.from_user.id
 
     # выбор пола
     if callback.data.startswith("gender_"):
