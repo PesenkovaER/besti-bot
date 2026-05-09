@@ -338,6 +338,17 @@ PERSONAS = {
 Никаких ролевых действий.
 Никаких звездочек.
 """
+GLOBAL_RULES = """
+Память используется только для содержания (фактов и контекста), но не для стиля речи.
+
+Режим влияет только на стиль ответа.
+
+Не смешивай стиль текущего режима с предыдущими режимами общения.
+
+Если стиль предыдущих сообщений отличается от текущего режима — не копируй его эмоциональную манеру, но сохраняй смысл сообщений.
+
+Ты всегда полностью следуешь текущему system prompt и не переносишь стиль из прошлых сообщений.
+"""
 }
 
 # =========================
@@ -346,7 +357,7 @@ PERSONAS = {
 def get_ai_response(user_id, user_text):
 
     mode = user_modes.get(user_id, "soft")
-    system_prompt = PERSONAS[mode]
+    system_prompt = PERSONAS[mode] + GLOBAL_RULES
     gender = user_gender.get(user_id, "female")
     if gender == "female":
         system_prompt += "\nПользователь — девушка. Обращайся к ней в женском роде."
@@ -379,7 +390,10 @@ def get_ai_response(user_id, user_text):
                 "frequency_penalty": 0.5,
                 "messages": [
                     {"role": "system", "content": system_prompt},
-                    *user_memory[user_id]
+                    *[
+                    msg for msg in user_memory.get(user_id, [])
+                    if not (msg["role"] == "system" and "Режим изменён" not in msg["content"])
+                ]
                 ]
             },
             timeout=20
@@ -394,13 +408,24 @@ def get_ai_response(user_id, user_text):
 
         reply = data["choices"][0]["message"]["content"]
 
-        
+        add_to_memory(user_id, "assistant", reply)
 
         return reply
-
     except Exception as e:
         print("AI ERROR:", e)
         return "💔 Бести не в ресурсе, попробуйте позже"
+def reset_style_boundary(user_id, mode):
+    if user_id not in user_memory:
+        return
+
+    user_memory[user_id].append({
+        "role": "system",
+        "content": f"⚠️ Режим изменён на: {mode}. Предыдущий стиль общения не использовать. Начать новый тон общения."
+    })
+
+    # ограничим длину памяти
+    user_memory[user_id] = user_memory[user_id][-40:]
+
 
 # =========================
 # ОБРАБОТКА СООБЩЕНИЙ
@@ -483,6 +508,8 @@ async def callback_handler(callback: types.CallbackQuery):
     mode = callback.data
 
     user_modes[user_id] = mode
+    reset_style_boundary(user_id, mode)
+
 
     if mode == "soft":
         text = "🤍 режим Няшка-милашка включён"
