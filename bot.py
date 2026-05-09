@@ -394,7 +394,7 @@ def get_ai_response(user_id, user_text):
 
         reply = data["choices"][0]["message"]["content"]
 
-        add_to_memory(user_id, "assistant", reply)
+        
 
         return reply
 
