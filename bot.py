@@ -88,6 +88,11 @@ def add_to_memory(user_id, role, content):
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[
         [
+            KeyboardButton(text="🤍 Милашка"),
+            KeyboardButton(text="💅 Токсик"),
+            KeyboardButton(text="🧠 Факты")
+        ],
+        [
             KeyboardButton(text="🔄 меню"),
             KeyboardButton(text="🧹 Отчистка памяти")
         ]
@@ -490,23 +495,42 @@ async def handle_message(message: types.Message):
     if text == "/start" or text == "🔄 меню":
         await message.answer("кто ты 💅", reply_markup=gender_keyboard())
         return
+    
+    # 🔥 НОВЫЕ КНОПКИ СМЕНЫ РЕЖИМА (ВСТАВЬ ЭТО)
+    if text == "🤍 Милашка":
+        user_modes[user_id] = "soft"
+        reset_style_boundary(user_id, "soft")
+        await message.answer("🤍 Режим Няшка-милашка включён", reply_markup=main_keyboard)
+        return
+    
+    if text == "💅 Токсик":
+        user_modes[user_id] = "toxic"
+        reset_style_boundary(user_id, "toxic")
+        await message.answer("💅 Режим Токсик включён", reply_markup=main_keyboard)
+        return
+    
+    if text == "🧠 Факты":
+        user_modes[user_id] = "facts"
+        reset_style_boundary(user_id, "facts")
+        await message.answer("🧠 Режим Факты включён", reply_markup=main_keyboard)
+        return
+    
     # очистка памяти
     if text == "/reset" or text == "🧹 Отчистка памяти":
-
         user_memory[user_id] = []
-
+        user_facts[user_id] = ""  # добавь эту строку
         await message.answer(
             "память очищена 💅",
             reply_markup=main_keyboard
         )
-
         return
+    
     # 1. сначала пол
     if user_id not in user_gender:
         await message.answer("сначала выбери кто ты 💅", reply_markup=gender_keyboard())
         return
 
-    # 2. потом режим
+    # 2. потом режим (можно убрать или оставить как защиту)
     if user_id not in user_modes:
         await message.answer("сначала выбери режим 💅", reply_markup=mode_keyboard())
         return
@@ -517,7 +541,6 @@ async def handle_message(message: types.Message):
         action="typing"
     )
 
-    # небольшая задержка для "живости"
     await asyncio.sleep(random.uniform(0.8, 2.2))
 
     reply = get_ai_response(user_id, text)
@@ -526,7 +549,6 @@ async def handle_message(message: types.Message):
         reply,
         reply_markup=main_keyboard
     )
-
 # =========================
 # INLINE КНОПКИ
 # =========================
