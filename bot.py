@@ -38,11 +38,33 @@ dp = Dispatcher()
 # =========================
 user_modes = {}
 user_gender = {}
-
+user_memory = {}
+user_facts = {}  # отдельное хранилище фактов
 # =========================
 # 🧠 ПАМЯТЬ ДИАЛОГА
 # =========================
-user_memory = {}
+
+def extract_facts_from_memory(user_id):
+    """Извлекает только факты из диалога"""
+    if user_id not in user_memory:
+        return ""
+    
+    important_topics = ["у меня", "я", "меня", "мне", "моя", "мой", "моё", 
+                        "болит", "работа", "учёба", "парень", "девушка", 
+                        "дела", "настроение", "проблема", "случилось"]
+    
+    facts = []
+    for msg in user_memory[user_id]:
+        if msg["role"] == "user":
+            text = msg["content"].lower()
+            if any(topic in text for topic in important_topics):
+                facts.append(f"• {msg['content']}")
+    
+    facts = facts[-15:]
+    
+    if facts:
+        return "ФАКТЫ ИЗ ДИАЛОГА:\n" + "\n".join(facts)
+    return ""
 
 def add_to_memory(user_id, role, content):
 
@@ -409,9 +431,9 @@ def get_ai_response(user_id, user_text):
                 "messages": [
                     {"role": "system", "content": system_prompt},
                     *[
-                    msg for msg in user_memory.get(user_id, [])
-                    if not (msg["role"] == "system" and "Режим изменён" not in msg["content"])
-                ]
+                        msg for msg in user_memory.get(user_id, [])
+                        if not (msg["role"] == "system" and "Отвечай в стиле" not in msg["content"])
+                    ][-30:]
                 ]
             },
             timeout=20
@@ -432,35 +454,27 @@ def get_ai_response(user_id, user_text):
     except Exception as e:
         print("AI ERROR:", e)
         return "💔 Бести не в ресурсе, попробуйте позже"
+
 def reset_style_boundary(user_id, mode):
-    """Добавляет в память жёсткий маркер смены стиля, не удаляя историю"""
+    """Меняет режим: сохраняет факты, чистит память"""
     if user_id not in user_memory:
-        return
+        user_memory[user_id] = []
     
-    # Добавляем системное сообщение, которое перебивает старый стиль
-    user_memory[user_id].append({
-        "role": "system",
-        "content": f"""🔴 КРИТИЧЕСКИ ВАЖНО: ТЕКУЩИЙ РЕЖИМ ИЗМЕНЁН НА "{mode.upper()}".
-
-ТЫ ДОЛЖНА ОТВЕЧАТЬ ТОЛЬКО В СТИЛЕ НОВОГО РЕЖИМА.
-
-ВСЕ ПРЕДЫДУЩИЕ СООБЩЕНИЯ В ДИАЛОГЕ БЫЛИ В ДРУГОМ СТИЛЕ. 
-НЕ КОПИРУЙ ИХ МАНЕРУ ОБЩЕНИЯ.
-НЕ ПРОДОЛЖАЙ СТАРЫЙ СТИЛЬ.
-
-ТЫ НАЧИНАЕШЬ ОБЩЕНИЕ ЗАНОВО, НО ПАМЯТАЕШЬ ФАКТЫ ИЗ ДИАЛОГА.
-
-НАПРИМЕР, ЕСЛИ ПОЛЬЗОВАТЕЛЬ РАНЬШЕ РАССКАЗАЛ, ЧТО У НЕГО БОЛИТ ГОЛОВА:
-- В РЕЖИМЕ "SOFT" ТЫ ПОЖАЛЕЕШЬ ЕГО
-- В РЕЖИМЕ "TOXIC" ТЫ ПОШЛЁШЬ ЕГО
-- В РЕЖИМЕ "FACTS" ТЫ СКАЖЕШЬ "Сходи к врачу"
-
-СОДЕРЖАНИЕ ДИАЛОГА ТЫ ПОМНИШЬ, НО СТИЛЬ ОТВЕТА МЕНЯЕТСЯ ПОЛНОСТЬЮ."""
-    })
+    # сохраняем факты
+    old_facts = extract_facts_from_memory(user_id)
+    user_facts[user_id] = old_facts
+    
+    # ПОЛНОСТЬЮ чистим память
+    user_memory[user_id] = []
+    
+    # вставляем сохранённые факты
+    if user_facts.get(user_id):
+        user_memory[user_id].append({
+            "role": "system",
+            "content": f"{user_facts[user_id]}\n\n⚠️ Отвечай в стиле {mode}, НО помни эти факты."
+        })
 
 
-    # ограничим длину памяти
-    user_memory[user_id] = user_memory[user_id][-40:]
 
 
 # =========================
