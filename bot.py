@@ -65,7 +65,10 @@ def add_to_memory(user_id, role, content):
 # =========================
 main_keyboard = ReplyKeyboardMarkup(
     keyboard=[
-        [KeyboardButton(text="🔄 меню")]
+        [
+            KeyboardButton(text="🔄 меню"),
+            KeyboardButton(text="🧹 Отчистка памяти")
+        ]
     ],
     resize_keyboard=True
 )
@@ -336,7 +339,7 @@ async def handle_message(message: types.Message):
         await message.answer("кто ты 💅", reply_markup=gender_keyboard())
         return
     # очистка памяти
-    if text == "/reset":
+    if text == "/reset" or text == "🧹 Отчистка памяти":
 
         user_memory[user_id] = []
 
