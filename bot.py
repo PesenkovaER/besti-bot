@@ -3,6 +3,9 @@ import random
 import asyncio
 import requests
 
+from flask import Flask
+from threading import Thread
+
 from dotenv import load_dotenv
 from aiogram.types import (
     InlineKeyboardMarkup,
@@ -600,9 +603,28 @@ async def callback_handler(callback: types.CallbackQuery):
     await callback.answer()
 
 # =========================
+# ВЕБ-СЕРВЕР ДЛЯ RENDER (health check)
+# =========================
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Бести работает 💅"
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run_web)
+    t.daemon = True
+    t.start()
+
+# =========================
 # ЗАПУСК
 # =========================
 async def main():
+    keep_alive()
     print("Бести запущена 💅")
     await dp.start_polling(bot)
 
