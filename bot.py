@@ -432,7 +432,7 @@ def get_ai_response(user_id, user_text):
             },
             json={
                 "model": "deepseek/deepseek-chat-v3",
-                "temperature": 1.1,
+                "temperature": 0.9,
                 "top_p": 0.95,
                 "presence_penalty": 0.6,
                 "frequency_penalty": 0.5,
