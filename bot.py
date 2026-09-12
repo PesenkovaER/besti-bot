@@ -25,10 +25,6 @@ OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "").strip()
 if not OPENROUTER_API_KEY:
     raise Exception("OPENROUTER_API_KEY НЕ ЗАГРУЗИЛСЯ")
 
-# 3. проверка (очень полезно)
-print("TG KEY:", repr(TELEGRAM_TOKEN))
-print("OR KEY:", repr(OPENROUTER_API_KEY))
-
 # 4. теперь только импорт бота
 from aiogram import Bot, Dispatcher, types
 
@@ -416,12 +412,8 @@ def get_ai_response(user_id, user_text):
     try:
 
         add_to_memory(user_id, "user", user_text.strip())
-        print("OPENROUTER KEY DEBUG:", repr(OPENROUTER_API_KEY))
         if not OPENROUTER_API_KEY:
             raise Exception("OPENROUTER_API_KEY пустой")
-        print("HEADERS CHECK:", {
-            "Authorization": f"Bearer {OPENROUTER_API_KEY.strip()}",
-        })
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers = {
